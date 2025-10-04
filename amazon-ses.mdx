@@ -1,0 +1,459 @@
+---
+id: amazon-ses
+name: Amazon SES
+description: Scalable email service built on Amazon's reliable infrastructure
+category: email-service-provider
+website: https://aws.amazon.com/ses
+documentation: https://docs.aws.amazon.com/ses
+pricing: $0.10 per 1,000 emails sent, $0.12 per GB of attachments
+features:
+  - SMTP interface
+  - AWS SDK/API
+  - Email receiving
+  - Configuration sets
+  - Reputation dashboard
+  - Dedicated IPs
+  - Virtual Deliverability Manager
+  - Automatic TLS
+authentication:
+  type: aws_signature_v4
+  location: header
+credentials:
+  - name: access_key_id
+    type: string
+    required: true
+    description: AWS Access Key ID
+  - name: secret_access_key
+    type: string
+    required: true
+    description: AWS Secret Access Key
+  - name: region
+    type: string
+    required: true
+    default: us-east-1
+    description: AWS region (e.g., us-east-1, us-west-2, eu-west-1)
+  - name: configuration_set
+    type: string
+    required: false
+    description: SES configuration set name for tracking
+---
+
+# Amazon SES Integration
+
+Amazon Simple Email Service (SES) is a cost-effective, scalable email service built on Amazon Web Services' reliable infrastructure.
+
+## Features
+
+### Email Sending
+- **SMTP Interface**: Standard SMTP for any application
+- **AWS SDK/API**: Full programmatic control via AWS SDKs
+- **Email Templates**: Reusable templates with variables
+- **Batch Sending**: Send to multiple recipients efficiently
+- **Cross-Region Sending**: Available in 9 AWS regions
+- **Automatic TLS**: Encrypted email delivery
+
+### Deliverability
+- **Reputation Dashboard**: Monitor sending reputation
+- **Virtual Deliverability Manager**: AI-powered insights
+- **Bounce and Complaint Handling**: Automatic suppression lists
+- **DKIM Signing**: Easy DKIM with Amazon SES
+- **SPF and DMARC**: Domain authentication support
+- **Dedicated IPs**: Optional dedicated IP addresses
+- **IP Warmup**: Managed IP warmup service
+
+### Email Receiving
+- **Inbound Email**: Receive emails to your domain
+- **Rule-Based Actions**: Trigger Lambda, S3, SNS, etc.
+- **Spam and Virus Scanning**: Built-in filtering
+- **Content Filtering**: Custom email processing rules
+
+### Configuration Sets
+Track and control email sending with:
+- Event publishing (SNS, CloudWatch, Kinesis Firehose)
+- Reputation metrics
+- IP pool management
+- Sending quotas
+- Dedicated IP assignments
+
+### Events & Notifications
+Amazon SES publishes events to:
+- **SNS Topics**: Real-time notifications
+- **CloudWatch**: Metrics and alarms
+- **Kinesis Firehose**: Stream to data lakes
+- **Event Destinations**: Custom HTTP endpoints
+
+**Event Types:**
+- `send` - Email sent from SES
+- `delivery` - Email delivered to recipient
+- `open` - Email opened (requires configuration set)
+- `click` - Link clicked (requires configuration set)
+- `bounce` - Hard or soft bounce
+- `complaint` - Spam complaint
+- `reject` - Email rejected before sending
+- `renderingFailure` - Template rendering failed
+
+## Configuration
+
+### AWS Credentials
+
+```typescript
+{
+  access_key_id: 'AKIAIOSFODNN7EXAMPLE',
+  secret_access_key: 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+  region: 'us-east-1',
+  configuration_set: 'cold-email-tracking'
+}
+```
+
+### IAM Policy
+
+Create an IAM user with this policy:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ses:SendEmail",
+        "ses:SendRawEmail",
+        "ses:SendTemplatedEmail",
+        "ses:SendBulkTemplatedEmail",
+        "ses:GetSendQuota",
+        "ses:GetSendStatistics",
+        "ses:GetAccount",
+        "ses:ListIdentities",
+        "ses:ListVerifiedEmailAddresses"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+```
+
+### DNS Records
+
+**Verify Domain:**
+```
+TXT _amazonses.yourdomain.com "verification-token"
+```
+
+**DKIM (Easy DKIM):**
+Amazon SES provides 3 CNAME records:
+```
+CNAME token1._domainkey.yourdomain.com token1.dkim.amazonses.com
+CNAME token2._domainkey.yourdomain.com token2.dkim.amazonses.com
+CNAME token3._domainkey.yourdomain.com token3.dkim.amazonses.com
+```
+
+**Custom MAIL FROM:**
+```
+MX 10 feedback-smtp.us-east-1.amazonses.com
+TXT mail.yourdomain.com "v=spf1 include:amazonses.com ~all"
+```
+
+### Sending Limits
+
+Amazon SES starts all accounts in **sandbox mode**:
+
+**Sandbox Limits:**
+- Only verified email addresses can receive
+- 200 emails per 24-hour period
+- 1 email per second
+
+**Production Limits (after moving out of sandbox):**
+- Start: 50,000 emails/day
+- Send rate: 14 emails/second
+- Auto-scaling: Increases automatically based on usage
+
+**Request Production Access:**
+1. Open SES console → Account Dashboard
+2. Click "Request production access"
+3. Provide use case description
+4. Wait 24 hours for approval
+
+### Configuration Sets
+
+Create a configuration set for tracking:
+
+```bash
+aws sesv2 create-configuration-set \
+  --configuration-set-name cold-email-tracking \
+  --region us-east-1
+```
+
+Add event destination:
+
+```bash
+aws sesv2 create-configuration-set-event-destination \
+  --configuration-set-name cold-email-tracking \
+  --event-destination-name webhook \
+  --event-destination '{
+    "Enabled": true,
+    "MatchingEventTypes": ["SEND","DELIVERY","OPEN","CLICK","BOUNCE","COMPLAINT"],
+    "HttpDestination": {
+      "HttpsUrl": "https://api.services.do/webhooks/amazon-ses"
+    }
+  }'
+```
+
+## API Reference
+
+### Send Email (v2 API)
+
+```typescript
+POST https://email.{region}.amazonaws.com/v2/email/outbound-emails
+
+Headers:
+  Authorization: AWS4-HMAC-SHA256 Credential=...
+  Content-Type: application/json
+  X-Amz-Date: 20240103T120000Z
+
+Body:
+{
+  "Content": {
+    "Simple": {
+      "Subject": {
+        "Data": "Hello",
+        "Charset": "UTF-8"
+      },
+      "Body": {
+        "Html": {
+          "Data": "<p>Email content</p>",
+          "Charset": "UTF-8"
+        },
+        "Text": {
+          "Data": "Email content",
+          "Charset": "UTF-8"
+        }
+      }
+    }
+  },
+  "Destination": {
+    "ToAddresses": ["recipient@example.com"]
+  },
+  "FromEmailAddress": "sender@yourdomain.com",
+  "ConfigurationSetName": "cold-email-tracking",
+  "EmailTags": [
+    { "Name": "campaign_id", "Value": "campaign-123" },
+    { "Name": "contact_id", "Value": "contact-456" }
+  ]
+}
+```
+
+### Send Raw Email (SMTP)
+
+```typescript
+POST https://email.{region}.amazonaws.com/v2/email/outbound-emails
+
+Headers:
+  Authorization: AWS4-HMAC-SHA256 Credential=...
+  Content-Type: application/json
+
+Body:
+{
+  "Content": {
+    "Raw": {
+      "Data": "base64_encoded_mime_message"
+    }
+  },
+  "ConfigurationSetName": "cold-email-tracking"
+}
+```
+
+### Get Send Statistics
+
+```typescript
+GET https://email.{region}.amazonaws.com/v2/email/metrics/batch
+
+Headers:
+  Authorization: AWS4-HMAC-SHA256 Credential=...
+
+Query Parameters:
+  StartDate: 2024-01-01T00:00:00Z
+  EndDate: 2024-01-31T23:59:59Z
+  Namespace: VDM
+```
+
+## Best Practices
+
+### Moving Out of Sandbox
+To move from sandbox to production:
+1. **Verify Domain**: Add DNS records
+2. **Implement Bounce Handling**: Set up SNS topics
+3. **Implement Complaint Handling**: Set up SNS topics
+4. **Request Production Access**: Provide detailed use case
+5. **Monitor Reputation**: Use reputation dashboard
+6. **Start Small**: Begin with low volumes
+
+### IP Warmup Schedule
+For dedicated IPs, follow this schedule:
+
+| Day | Volume | Day | Volume |
+|-----|--------|-----|--------|
+| 1 | 50 | 11 | 40,000 |
+| 2 | 100 | 12 | 60,000 |
+| 3 | 500 | 13 | 90,000 |
+| 4 | 1,000 | 14 | 135,000 |
+| 5 | 2,000 | 15 | 200,000 |
+| 6 | 5,000 | 16 | 300,000 |
+| 7 | 10,000 | 17 | 450,000 |
+| 8 | 15,000 | 18 | 675,000 |
+| 9 | 20,000 | 19 | 1,000,000 |
+| 10 | 30,000 | 20+ | Full volume |
+
+### Improving Deliverability
+- ✅ Use Amazon SES Easy DKIM
+- ✅ Set up custom MAIL FROM domain
+- ✅ Monitor bounce rates (keep < 5%)
+- ✅ Monitor complaint rates (keep < 0.1%)
+- ✅ Remove bounced addresses immediately
+- ✅ Honor unsubscribe requests
+- ✅ Use configuration sets for tracking
+- ✅ Enable feedback forwarding
+- ✅ Set up suppression list management
+- ✅ Use Virtual Deliverability Manager
+
+### Cost Optimization
+- Use shared IPs (free) instead of dedicated ($24.95/month per IP)
+- Send emails in batches to reduce API calls
+- Use email templates to reduce bandwidth
+- Monitor CloudWatch metrics to optimize send times
+- Compress attachments to reduce data transfer costs
+- Use cross-region sending strategically
+
+### Error Handling
+- **MessageRejected**: Check sandbox mode, verify identities
+- **Throttling**: Implement exponential backoff
+- **MailFromDomainNotVerified**: Complete domain verification
+- **ConfigurationSetDoesNotExist**: Create configuration set
+- **AccountSendingPausedException**: Contact AWS support
+
+## Integration with coldoutreach.do
+
+The `esp-gateway` service provides a normalized interface to Amazon SES:
+
+```typescript
+// Via RPC
+const result = await env.ESP_GATEWAY.send({
+  provider: 'amazon-ses',
+  message: {
+    to: 'recipient@example.com',
+    from: { email: 'hello@yourdomain.com', name: 'Sales Team' },
+    subject: 'Cold Email Subject',
+    html: '<p>Email content</p>',
+    text: 'Email content'
+  },
+  options: {
+    trackOpens: true,
+    trackClicks: true,
+    tags: ['campaign-123', 'cold-email'],
+    configurationSet: 'cold-email-tracking'
+  }
+})
+
+// Via HTTP
+POST https://api.services.do/esp-gateway/send
+{
+  "provider": "amazon-ses",
+  "message": { ... },
+  "options": { ... }
+}
+```
+
+## Webhook Setup
+
+Configure SES event destination to:
+
+```
+https://api.services.do/webhooks/amazon-ses
+```
+
+**Setup Steps:**
+1. Create configuration set
+2. Add event destination (HTTP endpoint)
+3. Enable event types: send, delivery, open, click, bounce, complaint
+4. Add authentication (optional: secret header)
+
+The webhook handler automatically processes:
+- Delivery confirmations
+- Open tracking (via configuration set)
+- Click tracking (via configuration set)
+- Bounce handling
+- Spam complaints
+
+## Pricing
+
+Amazon SES has simple, pay-as-you-go pricing:
+
+**Email Sending:**
+- $0.10 per 1,000 emails sent
+- First 62,000 emails/month free (if sending from EC2)
+
+**Attachments:**
+- $0.12 per GB of attachments
+
+**Dedicated IPs:**
+- $24.95 per month per IP
+
+**Data Transfer:**
+- $0.12 per GB out (to internet)
+- Free within same AWS region
+
+**Email Receiving:**
+- First 1,000 emails/month free
+- $0.10 per 1,000 emails after that
+- S3 storage costs apply
+
+**Example Costs:**
+- 100,000 emails/month: **$10.00**
+- 500,000 emails/month: **$50.00**
+- 1,000,000 emails/month: **$100.00**
+- Plus dedicated IP: **+$24.95/month**
+
+## AWS Region Availability
+
+Amazon SES is available in:
+- **us-east-1** (N. Virginia)
+- **us-east-2** (Ohio)
+- **us-west-1** (N. California)
+- **us-west-2** (Oregon)
+- **eu-west-1** (Ireland)
+- **eu-west-2** (London)
+- **eu-central-1** (Frankfurt)
+- **ap-south-1** (Mumbai)
+- **ap-southeast-2** (Sydney)
+
+**Latency Considerations:**
+- Use region closest to your servers
+- Consider data residency requirements (GDPR, etc.)
+- All regions have identical pricing
+
+## Support
+
+- **Documentation**: https://docs.aws.amazon.com/ses
+- **API Reference**: https://docs.aws.amazon.com/ses/latest/APIReference
+- **AWS Support**: https://console.aws.amazon.com/support
+- **Forum**: https://repost.aws/tags/TA4IvCeWI1TE66q4jEj2Z5zg/amazon-simple-email-service
+- **Status**: https://health.aws.amazon.com/health/status
+
+## Comparison with Other ESPs
+
+| Feature | Amazon SES | SendGrid | Mailgun |
+|---------|-----------|----------|---------|
+| **Base Price** | $0.10/1K | $0.80/1K | $0.80/1K |
+| **Free Tier** | 62K/mo (EC2) | 100/day | 5K total |
+| **Dedicated IP** | $24.95/mo | $30/mo | $59/mo |
+| **Deliverability** | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| **API Ease** | Medium | Easy | Easy |
+| **Support** | AWS Tiered | Email/Chat | Email |
+| **Best For** | Cost, AWS users | Features | Developers |
+
+## Related
+
+- [Mailgun Integration](mailgun.mdx)
+- [SendGrid Integration](sendgrid.mdx)
+- [ESP Gateway Service](../services/esp-gateway.mdx)
+- [Email Domain Schema](../schemas/email-domain.mdx)
+- [Domain Onboarding Workflow](../workflows/domain-onboarding.mdx)

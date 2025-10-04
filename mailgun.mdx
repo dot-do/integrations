@@ -1,0 +1,267 @@
+---
+id: mailgun
+name: Mailgun
+description: Email delivery service with powerful APIs and SMTP relay
+category: email-service-provider
+website: https://www.mailgun.com
+documentation: https://documentation.mailgun.com
+pricing: Pay-as-you-go starting at $0.80/1000 emails
+features:
+  - SMTP relay
+  - RESTful API
+  - Email validation
+  - Detailed analytics
+  - Webhook events
+  - IP reputation
+  - Dedicated IPs
+authentication:
+  type: api_key
+  location: header
+  key_name: api
+credentials:
+  - name: api_key
+    type: string
+    required: true
+    description: Mailgun API key (starts with key-)
+  - name: domain
+    type: string
+    required: true
+    description: Verified sending domain
+  - name: region
+    type: string
+    required: false
+    default: us
+    enum: [us, eu]
+    description: Mailgun region (us or eu)
+---
+
+# Mailgun Integration
+
+Mailgun is a powerful email delivery service with industry-leading deliverability, comprehensive APIs, and detailed analytics.
+
+## Features
+
+### Email Sending
+- **SMTP Relay**: Standard SMTP for legacy applications
+- **RESTful API**: Modern HTTP API with full control
+- **Batch Sending**: Send to multiple recipients efficiently
+- **Templating**: Store and use email templates
+- **Scheduled Delivery**: Send emails at specific times
+
+### Deliverability
+- **Domain Verification**: SPF, DKIM, and DMARC setup
+- **IP Reputation**: Dedicated and shared IP pools
+- **Bounce Handling**: Automatic bounce detection and management
+- **Spam Filter Testing**: Preview how your emails score
+- **Analytics Dashboard**: Track sends, opens, clicks, and more
+
+### Validation
+- **Email Validation API**: Real-time email verification
+- **Bulk Validation**: Validate lists of emails
+- **Syntax Check**: RFC-compliant email validation
+- **DNS Verification**: MX record validation
+- **Disposable Email Detection**: Filter temporary emails
+
+### Events & Webhooks
+Mailgun sends webhooks for:
+- `delivered` - Email successfully delivered
+- `opened` - Email opened (pixel tracking)
+- `clicked` - Link clicked
+- `bounced` - Hard or soft bounce
+- `failed` - Permanent failure
+- `unsubscribed` - Recipient unsubscribed
+- `complained` - Spam complaint
+
+## Configuration
+
+### API Credentials
+
+```typescript
+{
+  api_key: 'key-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+  domain: 'mg.yourdomain.com',
+  region: 'us' // or 'eu'
+}
+```
+
+### DNS Records
+
+Add these DNS records to your sending domain:
+
+**SPF Record:**
+```
+TXT @ "v=spf1 include:mailgun.org ~all"
+```
+
+**DKIM Record:**
+```
+TXT k1._domainkey "k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4..."
+```
+
+**Tracking Subdomain (optional):**
+```
+CNAME email.yourdomain.com mailgun.org
+```
+
+### Rate Limits
+
+Mailgun enforces the following rate limits:
+
+| Plan | Emails/Hour | Emails/Day | API Requests/Second |
+|------|-------------|------------|---------------------|
+| Free | 100 | 300 | 100 |
+| Foundation | 50,000 | 100,000 | 300 |
+| Growth | 100,000 | 500,000 | 600 |
+| Scale | Custom | Custom | Custom |
+
+## API Reference
+
+### Send Email
+
+```typescript
+POST https://api.mailgun.net/v3/{domain}/messages
+
+Headers:
+  Authorization: Basic api:{api_key}
+
+Body (form-data):
+  from: sender@yourdomain.com
+  to: recipient@example.com
+  subject: Hello
+  html: <p>Email content</p>
+  text: Email content
+  o:tracking: yes
+  o:tracking-clicks: yes
+  o:tracking-opens: yes
+  o:tag: campaign-123
+  o:testmode: no
+```
+
+### Validate Email
+
+```typescript
+GET https://api.mailgun.net/v4/address/validate
+
+Headers:
+  Authorization: Basic api:{api_key}
+
+Query Parameters:
+  address: test@example.com
+```
+
+### Get Webhook Events
+
+```typescript
+GET https://api.mailgun.net/v3/{domain}/events
+
+Headers:
+  Authorization: Basic api:{api_key}
+
+Query Parameters:
+  begin: {unix_timestamp}
+  end: {unix_timestamp}
+  event: delivered | opened | clicked | bounced | failed
+```
+
+## Best Practices
+
+### Warming Up IPs
+- Start with 50 emails/day on new IPs
+- Increase by 50% every 3 days
+- Reach full volume in 4-6 weeks
+- Monitor bounce rates and complaints
+
+### Improving Deliverability
+- ✅ Authenticate with SPF, DKIM, and DMARC
+- ✅ Use a dedicated sending domain (not your main domain)
+- ✅ Maintain clean mailing lists (validate regularly)
+- ✅ Monitor bounce rates (keep < 5%)
+- ✅ Handle unsubscribes promptly
+- ✅ Avoid spam trigger words
+- ✅ Use consistent from addresses
+- ✅ Implement proper list hygiene
+
+### Error Handling
+- Retry transient failures (5xx errors)
+- Don't retry permanent failures (4xx errors)
+- Implement exponential backoff
+- Log all API responses
+- Monitor webhook deliveries
+
+## Integration with coldoutreach.do
+
+The `esp-gateway` service provides a normalized interface to Mailgun:
+
+```typescript
+// Via RPC
+const result = await env.ESP_GATEWAY.send({
+  provider: 'mailgun',
+  message: {
+    to: 'recipient@example.com',
+    from: { email: 'hello@yourdomain.com', name: 'Sales Team' },
+    subject: 'Cold Email Subject',
+    html: '<p>Email content</p>',
+    text: 'Email content'
+  },
+  options: {
+    trackOpens: true,
+    trackClicks: true,
+    tags: ['campaign-123', 'cold-email']
+  }
+})
+
+// Via HTTP
+POST https://api.services.do/esp-gateway/send
+{
+  "provider": "mailgun",
+  "message": { ... },
+  "options": { ... }
+}
+```
+
+## Webhook Setup
+
+Configure Mailgun to send webhooks to:
+
+```
+https://api.services.do/webhooks/mailgun
+```
+
+The webhook handler automatically processes:
+- Delivery confirmations
+- Open tracking
+- Click tracking
+- Bounce handling
+- Unsubscribe requests
+- Spam complaints
+
+## Pricing
+
+Mailgun uses pay-as-you-go pricing:
+
+| Volume | Price per 1,000 Emails |
+|--------|------------------------|
+| 0 - 5K | Free |
+| 5K - 50K | $0.80 |
+| 50K - 100K | $0.70 |
+| 100K+ | $0.50 |
+
+Additional features:
+- **Email Validation**: $0.005 per validation
+- **Dedicated IPs**: $59/month per IP
+- **Email Logs**: $2.99/month for extended retention
+
+## Support
+
+- **Documentation**: https://documentation.mailgun.com
+- **API Reference**: https://documentation.mailgun.com/en/latest/api_reference.html
+- **Support**: support@mailgun.com
+- **Status Page**: https://status.mailgun.com
+
+## Related
+
+- [SendGrid Integration](sendgrid.mdx)
+- [Amazon SES Integration](amazon-ses.mdx)
+- [ESP Gateway Service](../services/esp-gateway.mdx)
+- [Email Domain Schema](../schemas/email-domain.mdx)
+- [Domain Onboarding Workflow](../workflows/domain-onboarding.mdx)

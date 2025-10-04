@@ -1,0 +1,374 @@
+---
+id: sendgrid
+name: SendGrid
+description: Email delivery and marketing platform by Twilio
+category: email-service-provider
+website: https://sendgrid.com
+documentation: https://docs.sendgrid.com
+pricing: Free tier with 100 emails/day, paid plans from $19.95/month
+features:
+  - SMTP relay
+  - RESTful API
+  - Email validation
+  - A/B testing
+  - Marketing campaigns
+  - Deliverability insights
+  - Dedicated IPs
+  - Subuser management
+authentication:
+  type: api_key
+  location: header
+  key_name: Authorization
+  value_prefix: Bearer
+credentials:
+  - name: api_key
+    type: string
+    required: true
+    description: SendGrid API key (starts with SG.)
+  - name: from_email
+    type: string
+    required: false
+    description: Default sender email address
+  - name: from_name
+    type: string
+    required: false
+    description: Default sender name
+---
+
+# SendGrid Integration
+
+SendGrid (now part of Twilio) is a cloud-based email delivery platform with marketing automation, deliverability tools, and comprehensive analytics.
+
+## Features
+
+### Email Sending
+- **Web API v3**: Modern JSON API with full control
+- **SMTP Relay**: Standard SMTP for any application
+- **Dynamic Templates**: Handlebars-based email templates
+- **Batch Sending**: Send to 1,000 recipients per request
+- **Scheduled Sends**: Schedule emails for future delivery
+- **Send at Best Time**: AI-powered optimal send times
+
+### Deliverability
+- **Domain Authentication**: SPF, DKIM, and DMARC
+- **Sender Reputation**: Monitor IP and domain reputation
+- **Deliverability Insights**: ISP-specific analytics
+- **Bounce Management**: Automatic bounce suppression
+- **Spam Report Handling**: Automatic complaint processing
+- **Engagement Quality**: Track engagement metrics
+
+### Validation
+- **Email Validation API**: Real-time address verification
+- **Batch Validation**: Validate large lists
+- **Risk Assessment**: Score email addresses
+- **Syntax Validation**: RFC compliance check
+- **Domain Validation**: MX record verification
+- **Role Account Detection**: Identify info@, support@ addresses
+
+### Marketing Features
+- **Contact Management**: Store and segment contacts
+- **Automation**: Triggered email sequences
+- **A/B Testing**: Subject line and content testing
+- **Templates**: Visual template editor
+- **Unsubscribe Groups**: Granular unsubscribe preferences
+- **Single Sends**: One-time marketing campaigns
+
+### Events & Webhooks
+SendGrid sends webhooks for:
+- `processed` - Email processed (accepted)
+- `delivered` - Email successfully delivered
+- `open` - Email opened (pixel tracking)
+- `click` - Link clicked
+- `bounce` - Hard or soft bounce
+- `dropped` - Email dropped before send
+- `deferred` - Temporary failure, will retry
+- `unsubscribe` - Recipient unsubscribed
+- `spamreport` - Marked as spam
+- `group_unsubscribe` - Unsubscribed from specific group
+- `group_resubscribe` - Resubscribed to group
+
+## Configuration
+
+### API Credentials
+
+```typescript
+{
+  api_key: 'SG.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+  from_email: 'hello@yourdomain.com',
+  from_name: 'Sales Team'
+}
+```
+
+### DNS Records
+
+Add these DNS records to your sending domain:
+
+**CNAME Records (Domain Authentication):**
+```
+CNAME s1._domainkey.yourdomain.com s1.domainkey.u12345.wl.sendgrid.net
+CNAME s2._domainkey.yourdomain.com s2.domainkey.u12345.wl.sendgrid.net
+```
+
+**CNAME Record (Link Branding):**
+```
+CNAME links.yourdomain.com sendgrid.net
+```
+
+**Reverse DNS (if using dedicated IP):**
+```
+A o1.email.yourdomain.com 192.xxx.xxx.xxx
+```
+
+### Rate Limits
+
+SendGrid enforces the following rate limits:
+
+| Plan | Emails/Day | Emails/Month | API Requests/Second |
+|------|------------|--------------|---------------------|
+| Free | 100 | 3,000 | 100 |
+| Essentials | 40,000 | 1,200,000 | 600 |
+| Pro | 100,000+ | Custom | 3,000 |
+| Premier | Custom | Custom | Custom |
+
+**Batch Sending Limits:**
+- Max 1,000 recipients per API request
+- Max 10,000 personalizations per request
+- Max 1MB email size (including attachments)
+
+## API Reference
+
+### Send Email (v3 API)
+
+```typescript
+POST https://api.sendgrid.com/v3/mail/send
+
+Headers:
+  Authorization: Bearer {api_key}
+  Content-Type: application/json
+
+Body:
+{
+  "personalizations": [{
+    "to": [{ "email": "recipient@example.com", "name": "John Doe" }],
+    "subject": "Hello",
+    "custom_args": {
+      "campaign_id": "campaign-123",
+      "contact_id": "contact-456"
+    }
+  }],
+  "from": {
+    "email": "sender@yourdomain.com",
+    "name": "Sales Team"
+  },
+  "content": [{
+    "type": "text/html",
+    "value": "<p>Email content</p>"
+  }],
+  "tracking_settings": {
+    "click_tracking": { "enable": true },
+    "open_tracking": { "enable": true }
+  }
+}
+```
+
+### Validate Email
+
+```typescript
+POST https://api.sendgrid.com/v3/validations/email
+
+Headers:
+  Authorization: Bearer {api_key}
+  Content-Type: application/json
+
+Body:
+{
+  "email": "test@example.com",
+  "source": "signup"
+}
+```
+
+### Get Email Activity
+
+```typescript
+GET https://api.sendgrid.com/v3/messages
+
+Headers:
+  Authorization: Bearer {api_key}
+
+Query Parameters:
+  query: msg_id="msg-id" OR to_email="recipient@example.com"
+  limit: 10
+```
+
+### Create Subuser
+
+```typescript
+POST https://api.sendgrid.com/v3/subusers
+
+Headers:
+  Authorization: Bearer {api_key}
+  Content-Type: application/json
+
+Body:
+{
+  "username": "campaign-subuser-1",
+  "email": "subuser@yourdomain.com",
+  "password": "secure_password",
+  "ips": ["192.xxx.xxx.xxx"]
+}
+```
+
+## Best Practices
+
+### IP Warmup Schedule
+SendGrid recommends this warmup schedule:
+
+| Day | Volume | Day | Volume |
+|-----|--------|-----|--------|
+| 1 | 50 | 11 | 25,000 |
+| 2 | 100 | 12 | 50,000 |
+| 3 | 500 | 13 | 100,000 |
+| 4 | 1,000 | 14 | 150,000 |
+| 5 | 5,000 | 15 | 250,000 |
+| 6 | 10,000 | 16+ | Full volume |
+
+### Improving Deliverability
+- ✅ Authenticate domain with SPF and DKIM
+- ✅ Brand your links (CNAME subdomain)
+- ✅ Warm up dedicated IPs gradually
+- ✅ Maintain low bounce rates (<5%)
+- ✅ Monitor spam complaint rates (<0.1%)
+- ✅ Use consistent sender addresses
+- ✅ Segment your audience
+- ✅ Clean inactive subscribers (180+ days)
+- ✅ Implement double opt-in
+- ✅ Honor unsubscribe requests immediately
+
+### Error Handling
+- Retry on 429 (rate limit) after waiting
+- Retry on 5xx errors with exponential backoff
+- Don't retry on 4xx errors (except 429)
+- Log all API responses for debugging
+- Monitor webhook delivery status
+
+### Subuser Management
+Use subusers to:
+- Isolate campaign reputations
+- Delegate sending to different teams
+- Track performance by business unit
+- Implement multi-tenant email systems
+- Separate transactional from marketing emails
+
+## Integration with coldoutreach.do
+
+The `esp-gateway` service provides a normalized interface to SendGrid:
+
+```typescript
+// Via RPC
+const result = await env.ESP_GATEWAY.send({
+  provider: 'sendgrid',
+  message: {
+    to: 'recipient@example.com',
+    from: { email: 'hello@yourdomain.com', name: 'Sales Team' },
+    subject: 'Cold Email Subject',
+    html: '<p>Email content</p>',
+    text: 'Email content'
+  },
+  options: {
+    trackOpens: true,
+    trackClicks: true,
+    tags: ['campaign-123', 'cold-email'],
+    customArgs: {
+      campaign_id: 'campaign-123',
+      contact_id: 'contact-456'
+    }
+  }
+})
+
+// Via HTTP
+POST https://api.services.do/esp-gateway/send
+{
+  "provider": "sendgrid",
+  "message": { ... },
+  "options": { ... }
+}
+```
+
+## Webhook Setup
+
+Configure SendGrid Event Webhook to:
+
+```
+https://api.services.do/webhooks/sendgrid
+```
+
+**Recommended Settings:**
+- ✅ Enable all event types
+- ✅ HTTP POST
+- ✅ OAuth (if supported)
+- ✅ Deliver only unique arguments
+- ❌ Don't enable send raw (too much data)
+
+The webhook handler automatically processes:
+- Delivery confirmations
+- Open tracking
+- Click tracking
+- Bounce handling
+- Unsubscribe requests
+- Spam complaints
+
+## Pricing
+
+SendGrid pricing tiers:
+
+| Plan | Monthly Price | Emails/Month | Features |
+|------|---------------|--------------|----------|
+| **Free** | $0 | 3,000 (100/day) | Basic API, SMTP |
+| **Essentials** | $19.95 | 50,000 | Email validation |
+| **Pro** | $89.95 | 1,500,000 | Dedicated IP, subusers |
+| **Premier** | Custom | Custom | Enterprise features |
+
+**Add-ons:**
+- **Email Validation**: $0.001 per validation
+- **Dedicated IP**: $30/month per IP
+- **Additional Contacts**: $15/10,000 contacts/month
+- **Inbound Parse**: Included free
+
+**Volume Discounts:**
+- 100K-500K: Contact sales
+- 500K-1M: Contact sales
+- 1M+: Custom pricing
+
+## Support
+
+- **Documentation**: https://docs.sendgrid.com
+- **API Reference**: https://docs.sendgrid.com/api-reference
+- **Support Portal**: https://support.sendgrid.com
+- **Status Page**: https://status.sendgrid.com
+- **Community**: https://community.sendgrid.com
+
+## Migration from Other ESPs
+
+SendGrid provides migration tools for:
+- Mailgun → SendGrid
+- Mandrill → SendGrid
+- Amazon SES → SendGrid
+- Mailchimp → SendGrid
+
+**Migration Checklist:**
+1. Set up domain authentication
+2. Import contacts
+3. Recreate email templates
+4. Set up webhook endpoints
+5. Update API credentials
+6. Test with small batch
+7. Monitor deliverability
+8. Gradually increase volume
+
+## Related
+
+- [Mailgun Integration](mailgun.mdx)
+- [Amazon SES Integration](amazon-ses.mdx)
+- [ESP Gateway Service](../services/esp-gateway.mdx)
+- [Email Domain Schema](../schemas/email-domain.mdx)
+- [Domain Onboarding Workflow](../workflows/domain-onboarding.mdx)
