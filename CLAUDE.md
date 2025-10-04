@@ -83,6 +83,22 @@ pnpm dev
 pnpm check-types
 ```
 
+## Examples
+
+See **[examples/](../examples/)** for working TypeScript + MDX integration examples:
+
+- **stripe-webhooks-integration.mdx** - Complete Stripe webhook handling (payments, subscriptions, invoices)
+
+These examples demonstrate:
+- ✅ Full TypeScript intellisense in MDX files
+- ✅ Webhook signature verification and security
+- ✅ Event routing and handler functions
+- ✅ Error handling and retry logic
+- ✅ Database synchronization
+- ✅ Testing with Stripe CLI
+
+Run examples: `pnpm --filter examples dev`
+
 ## Related Documentation
 
 - **Parent**: [Root CLAUDE.md](../CLAUDE.md) - Multi-repo management
