@@ -1,0 +1,410 @@
+---
+id: apollo-io
+name: Apollo.io
+description: B2B contact and company data enrichment platform
+category: data-enrichment
+status: active
+provider: Apollo.io
+website: https://www.apollo.io
+api_docs: https://apolloio.github.io/apollo-api-docs
+authentication:
+  type: api_key
+  method: header
+  header_name: X-Api-Key
+  docs: https://apolloio.github.io/apollo-api-docs/#authentication
+rate_limits:
+  per_second: 10
+  per_minute: 600
+  per_hour: 10000
+pricing:
+  free_tier: 50 credits/month
+  paid_tiers:
+    - name: Basic
+      price: 49
+      credits: 1200
+    - name: Professional
+      price: 99
+      credits: 12000
+    - name: Organization
+      price: 149
+      credits: 48000
+endpoints:
+  - name: Person Search
+    method: POST
+    path: /v1/people/search
+    description: Search for people by various criteria
+  - name: Person Match
+    method: POST
+    path: /v1/people/match
+    description: Match and enrich a specific person
+  - name: Organization Search
+    method: POST
+    path: /v1/organizations/search
+    description: Search for companies
+  - name: Organization Enrich
+    method: POST
+    path: /v1/organizations/enrich
+    description: Enrich company data by domain
+  - name: Email Status
+    method: POST
+    path: /v1/email_status
+    description: Verify email deliverability
+capabilities:
+  - contact_enrichment
+  - company_enrichment
+  - email_verification
+  - phone_discovery
+  - job_title_lookup
+  - linkedin_profile
+  - social_profiles
+  - company_technographics
+data_coverage:
+  contacts: 275000000
+  companies: 60000000
+  countries: 200+
+metadata:
+  ns: integrations
+  visibility: public
+tags:
+  - data-enrichment
+  - b2b
+  - contacts
+  - companies
+  - email-verification
+---
+
+# Apollo.io Integration
+
+B2B contact and company data enrichment platform with 275M+ contacts and 60M+ companies.
+
+## Overview
+
+Apollo.io provides comprehensive B2B data including:
+- **Contact Data**: Email, phone, title, LinkedIn, social profiles
+- **Company Data**: Industry, size, revenue, location, technologies
+- **Email Verification**: Deliverability status (verified, guessed, unavailable)
+- **Intent Signals**: Buying intent and engagement data
+
+## Authentication
+
+API key authentication via header:
+
+```typescript
+const response = await fetch('https://api.apollo.io/v1/people/match', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'X-Api-Key': process.env.APOLLO_API_KEY,
+  },
+  body: JSON.stringify({
+    email: 'john@example.com',
+  }),
+})
+```
+
+## Endpoints
+
+### Person Match
+
+Enrich a specific person by email or other identifiers.
+
+**Endpoint**: `POST /v1/people/match`
+
+**Request**:
+```json
+{
+  "email": "john@example.com",
+  "organization_name": "Acme Corp",
+  "reveal_personal_emails": true
+}
+```
+
+**Response**:
+```json
+{
+  "person": {
+    "id": "abc123",
+    "first_name": "John",
+    "last_name": "Doe",
+    "email": "john@example.com",
+    "email_status": "verified",
+    "title": "VP of Engineering",
+    "organization": {
+      "name": "Acme Corp",
+      "website_url": "https://example.com",
+      "primary_domain": "example.com",
+      "industry": "Software",
+      "num_employees": 500
+    },
+    "linkedin_url": "https://linkedin.com/in/johndoe",
+    "photo_url": "https://example.com/photo.jpg"
+  }
+}
+```
+
+### Person Search
+
+Search for people matching specific criteria.
+
+**Endpoint**: `POST /v1/people/search`
+
+**Request**:
+```json
+{
+  "person_titles": ["VP of Engineering", "CTO"],
+  "organization_domains": ["example.com"],
+  "organization_num_employees_ranges": ["1,10", "11,50"],
+  "page": 1
+}
+```
+
+**Response**:
+```json
+{
+  "people": [
+    {
+      "id": "abc123",
+      "first_name": "John",
+      "last_name": "Doe",
+      "email": "john@example.com",
+      "email_status": "verified",
+      "title": "VP of Engineering"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "per_page": 25,
+    "total_entries": 150
+  }
+}
+```
+
+### Organization Enrich
+
+Enrich company data by domain.
+
+**Endpoint**: `POST /v1/organizations/enrich`
+
+**Request**:
+```json
+{
+  "domain": "example.com"
+}
+```
+
+**Response**:
+```json
+{
+  "organization": {
+    "id": "org123",
+    "name": "Acme Corp",
+    "website_url": "https://example.com",
+    "primary_domain": "example.com",
+    "industry": "Software",
+    "estimated_num_employees": 500,
+    "logo_url": "https://logo.clearbit.com/example.com",
+    "city": "San Francisco",
+    "state": "California",
+    "country": "United States",
+    "linkedin_url": "https://linkedin.com/company/acme",
+    "keywords": ["SaaS", "Cloud", "API"]
+  }
+}
+```
+
+### Email Status
+
+Verify email deliverability status.
+
+**Endpoint**: `POST /v1/email_status`
+
+**Request**:
+```json
+{
+  "email": "john@example.com"
+}
+```
+
+**Response**:
+```json
+{
+  "email": "john@example.com",
+  "status": "verified",
+  "mx_records_configured": true,
+  "smtp_valid": true,
+  "accept_all": false,
+  "disposable": false,
+  "role_account": false
+}
+```
+
+## Use Cases
+
+### Contact Enrichment
+```typescript
+const contact = await apollo.personMatch({
+  email: 'john@example.com',
+  reveal_personal_emails: true,
+})
+
+// Returns: name, title, company, LinkedIn, phone, etc.
+```
+
+### Company Enrichment
+```typescript
+const company = await apollo.organizationEnrich({
+  domain: 'example.com',
+})
+
+// Returns: industry, size, revenue, location, technologies
+```
+
+### Lead Generation
+```typescript
+const leads = await apollo.personSearch({
+  person_titles: ['CEO', 'Founder'],
+  organization_industries: ['Software'],
+  organization_num_employees_ranges: ['11,50', '51,200'],
+})
+
+// Returns: List of contacts matching criteria
+```
+
+### Email Verification
+```typescript
+const verification = await apollo.emailStatus({
+  email: 'john@example.com',
+})
+
+// Returns: verified, guessed, or unavailable
+```
+
+## Email Status
+
+Apollo provides three email statuses:
+
+- **verified** (90-95% accuracy): Email has been verified via SMTP
+- **guessed** (70-80% accuracy): Email follows common patterns
+- **unavailable**: No email found
+
+## Rate Limits
+
+- **Free Tier**: 50 credits/month
+- **Basic**: 1,200 credits/month ($49)
+- **Professional**: 12,000 credits/month ($99)
+- **Organization**: 48,000 credits/month ($149)
+
+**Limits**:
+- 10 requests/second
+- 600 requests/minute
+- 10,000 requests/hour
+
+## Cost per Enrichment
+
+- **Person Match**: 1 credit
+- **Person Search**: 1 credit per person
+- **Organization Enrich**: 1 credit
+- **Email Status**: 0.25 credits
+
+## Best Practices
+
+### Caching Strategy
+- Cache enriched data for 30 days
+- Store in KV with domain or email as key
+- Reduces API costs by ~90%
+
+### Error Handling
+```typescript
+try {
+  const person = await apollo.personMatch({ email })
+} catch (error) {
+  if (error.status === 404) {
+    // Person not found - try alternative source
+  } else if (error.status === 429) {
+    // Rate limited - queue for retry
+  } else {
+    // Other error - log and alert
+  }
+}
+```
+
+### Parallel Requests
+```typescript
+// Use Promise.all for bulk enrichment
+const enriched = await Promise.all(
+  contacts.map((contact) => apollo.personMatch({ email: contact.email }))
+)
+```
+
+### Email Verification
+```typescript
+// Verify before enriching
+const status = await apollo.emailStatus({ email })
+
+if (status.status === 'verified' || status.status === 'guessed') {
+  const enriched = await apollo.personMatch({ email })
+}
+```
+
+## Integration with Services
+
+### lead-enrichment Service
+```typescript
+// Apollo is first priority source
+const enriched = await env.LEAD_ENRICHMENT.enrichContact({
+  email: 'john@example.com',
+  sources: ['apollo'], // Use Apollo specifically
+})
+```
+
+### email-validation Service
+```typescript
+// Verify email before enrichment
+const valid = await env.EMAIL_VALIDATION.validateEmail(email)
+if (valid.deliverable) {
+  const enriched = await apollo.personMatch({ email })
+}
+```
+
+### email-campaigns Service
+```typescript
+// Enrich campaign contacts
+for (const contact of campaign.contacts) {
+  const enriched = await apollo.personMatch({ email: contact.email })
+  // Use enriched data for personalization
+}
+```
+
+## Data Fields
+
+### Person Fields
+- `first_name`, `last_name`
+- `email` (verified or guessed)
+- `title`, `seniority`
+- `organization` (nested company data)
+- `linkedin_url`, `twitter_url`, `github_url`
+- `photo_url`
+- `city`, `state`, `country`
+- `phone_numbers` (if available)
+
+### Company Fields
+- `name`, `website_url`, `primary_domain`
+- `industry`, `keywords`
+- `estimated_num_employees`
+- `publicly_traded_symbol` (if public)
+- `logo_url`
+- `city`, `state`, `country`
+- `linkedin_url`, `twitter_url`, `facebook_url`
+- `phone` (main company number)
+
+## Related Integrations
+
+- **clearbit** - Alternative enrichment source
+- **hunter-io** - Email finder and verifier
+- **snov-io** - Email finder and verifier
+
+## Related Services
+
+- **lead-enrichment** - Multi-source enrichment service
+- **email-validation** - Email verification service
+- **email-campaigns** - Campaign management service
